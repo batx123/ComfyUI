@@ -1,0 +1,35 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: comfyui-hpa
+  namespace: comfyui
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: comfyui-gpu
+  minReplicas: 1
+  maxReplicas: 1
+  metrics:
+  # CPU-based scaling
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  # Optional: Memory-based scaling
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  # Optional: Custom metrics if you set up custom metrics exporter
+  # - type: Pods
+  #   pods:
+  #     metric:
+  #       name: comfyui_requests_per_second
+  #     target:
+  #       type: AverageValue
+  #       averageValue: "1000"

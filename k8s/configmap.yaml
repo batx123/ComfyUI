@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: comfyui-config
+  namespace: comfyui
+data:
+  # ComfyUI configuration
+  COMFYUI_MODELS_DIR: "/app/comfyui/models"
+  COMFYUI_WEB_DIR: "/app/comfyui/web"
+  COMFYUI_TEMP_DIR: "/app/comfyui/temp"
+  COMFYUI_EXTRA_MODEL_PATHS: "/app/comfyui/extra_model_paths"
+  
+  # Optional: Additional configuration
+  # COMFYUI_MAX_WORKERS: "4"
+  # COMFYUI_LOG_LEVEL: "INFO"
+  # COMFYUI_ENABLE_DEBUG: "false"
+  
+  # Default model paths configuration
+  MODEL_PATHS: |
+    # LLM models
+    llm:
+      - /app/comfyui/models/llm
+    
+    # Checkpoint models
+    checkpoints:
+      - /app/comfyui/models/checkpoints
+    
+    # LoRA models
+    lora:
+      - /app/comfyui/models/lora
+    
+    # VAE models
+    vae:
+      - /app/comfyui/models/vae
+    
+    # embeddings
+    embeddings:
+      - /app/comfyui/models/embeddings
+    
+    # upscalers
+    upscalers:
+      - /app/comfyui/models/upscalers

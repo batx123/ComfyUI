@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: comfyui-gpu
+  namespace: comfyui
+  labels:
+    app: comfyui-gpu
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: comfyui-gpu
+  template:
+    metadata:
+      labels:
+        app: comfyui-gpu
+    spec:
+      # Node selector for GPU nodes - modify based on your cluster
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+        # Or use kubernetes.io/hostname for specific nodes:
+        # kubernetes.io/hostname: "your-gpu-node"
+      # Tolerations for tainted nodes (if using GPU nodes with taints)
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: comfyui-gpu
+        image: localhost:32000/comfyui:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8188
+          name: http
+          protocol: TCP
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+            memory: "96Gi"
+            cpu: "8"
+          requests:
+            nvidia.com/gpu: 1
+            memory: "32Gi"
+            cpu: "2"
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: CUDA_VISIBLE_DEVICES
+          value: "0"
+        - name: COMFYUI_MODELS_DIR
+          value: "/app/comfyui/models"
+        - name: COMFYUI_WEB_DIR
+          value: "/app/comfyui/web"
+        - name: COMFYUI_TEMP_DIR
+          value: "/app/comfyui/temp"
+        - name: COMFYUI_EXTRA_MODEL_PATHS
+          value: "/app/comfyui/extra_model_paths"
+        volumeMounts:
+        - name: models
+          mountPath: /app/models
+        - name: web
+          mountPath: /app/comfyui/web
+        - name: temp
+          mountPath: /app/temp
+        - name: extra-model-paths
+          mountPath: /app/comfyui/extra_model_paths
+      volumes:
+      - name: models
+        persistentVolumeClaim:
+          claimName: comfyui-models-pvc
+      - name: web
+        persistentVolumeClaim:
+          claimName: comfyui-web-pvc
+      - name: temp
+        persistentVolumeClaim:
+          claimName: comfyui-temp-pvc
+      - name: extra-model-paths
+        persistentVolumeClaim:
+          claimName: comfyui-extra-model-paths-pvc
+      restartPolicy: Always
