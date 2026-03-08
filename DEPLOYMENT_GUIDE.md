@@ -21,7 +21,7 @@ This guide documents the working deployment of ComfyUI on a MicroK8s single-node
 **Hardware**
 - CPU: Multi-core (8 CPUs allocated to pod)
 - RAM: 192GB system RAM (96Gi memory limit per pod)
-- GPU: 2x NVIDIA RTX 6000 Ada Generation (48GB VRAM each) — 1 GPU assigned to ComfyUI
+- GPU: NVIDIA GPU with 48GB VRAM — 1 GPU assigned to ComfyUI
 - Storage: NVMe drive at `/mnt/data` (~938GB) for Docker and PVC data
 
 **Software Stack**
