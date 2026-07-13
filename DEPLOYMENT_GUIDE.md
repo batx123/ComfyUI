@@ -302,27 +302,64 @@ sudo rsync -av --progress /path/to/local/models/ "$PVC_PATH/"
 ComfyUI expects models organized under `/app/models/`:
 
 ```
-checkpoints/    - Main diffusion model checkpoints (.safetensors, .ckpt)
-clip/           - CLIP text encoders
-vae/            - VAE models
-loras/          - LoRA weights
-controlnet/     - ControlNet models
-model_patches/  - Model patches (e.g., ControlNet Union)
-unet/           - UNet-only models
-upscale_models/ - Upscaler models
+checkpoints/         - Main diffusion model checkpoints (.safetensors, .ckpt)
+clip/                - CLIP text encoders
+vae/                 - VAE models
+loras/               - LoRA weights
+controlnet/          - ControlNet models
+model_patches/       - Model patches (e.g., ControlNet Union)
+unet/                - UNet-only models
+upscale_models/      - Upscaler models
+frame_interpolation/ - RIFE/FILM checkpoints for the core FrameInterpolate node (ComfyUI >= 0.20.0)
+```
+
+### Frame Interpolation (RIFE) Models
+
+The core `FrameInterpolationModelLoader`/`FrameInterpolate` nodes (added in ComfyUI 0.20.0) load
+checkpoints from `frame_interpolation/`. **Only the RIFE 4.25/4.26 architecture is supported**
+(feature-encode head + 5 refinement blocks): `rife426.pth` works; `rife47.pth`/`rife49.pth` fail
+with `KeyError: encode.cnn3.weight` and `rife417.pth` with "expected 5 blocks, found 4".
+Working download source: `https://github.com/Fannovel16/ComfyUI-Frame-Interpolation/releases/download/models/rife426.pth`
+(the styler00dollar release URLs referenced elsewhere now 404).
+
+Copy into the PVC through the running pod — `folder_paths` picks it up live, no restart needed:
+
+```bash
+POD=$(microk8s kubectl get pods -n comfyui --field-selector status.phase=Running -o jsonpath='{.items[0].metadata.name}')
+microk8s kubectl exec -n comfyui $POD -- mkdir -p /app/models/frame_interpolation
+microk8s kubectl cp rife426.pth comfyui/$POD:/app/models/frame_interpolation/rife426.pth
 ```
 
 ---
 
 ## Updating ComfyUI
 
+### Version Upgrade from the Fork (proven 0.18.1 → 0.27.0, 2026-07-12)
+
+This repo is a fork clone carrying three local commits (Dockerfile, `k8s/` manifests, this guide)
+on top of upstream. To move to a new upstream version: sync the fork on GitHub first, then:
+
+```bash
+# Make sure nothing is generating
+curl -s http://<comfyui-ip>:8188/queue   # queue_running/queue_pending should be empty
+
+# Rebase local deployment commits onto the synced fork (purely additive files — rebases clean)
+git fetch origin
+git rebase origin/master
+
+# Preserve a rollback tag for the currently-running image
+docker tag localhost:32000/comfyui:latest localhost:32000/comfyui:v<old-version>
+docker push localhost:32000/comfyui:v<old-version>
+```
+
 ### Rebuild and Redeploy
 
 ```bash
-# Build new image
-docker build -t localhost:32000/comfyui:latest .
+# Build new image (version tag + latest)
+docker build -t localhost:32000/comfyui:v<new-version> -t localhost:32000/comfyui:latest .
 
 # Push to registry
+docker push localhost:32000/comfyui:v<new-version>
 docker push localhost:32000/comfyui:latest
 
 # Trigger rolling update
@@ -331,6 +368,19 @@ microk8s kubectl rollout restart deployment/comfyui-gpu -n comfyui
 # Watch progress
 microk8s kubectl rollout status deployment/comfyui-gpu -n comfyui
 ```
+
+### Verify After Upgrade
+
+```bash
+# Version actually running
+curl -s http://<comfyui-ip>:8188/system_stats | jq .system.comfyui_version
+
+# Node classes your workflows depend on still exist (spot-check /object_info)
+curl -s http://<comfyui-ip>:8188/object_info | jq 'keys | length'
+```
+
+Then run a real generation through whatever client normally drives this instance —
+node classes existing is necessary but not sufficient.
 
 ### GPU Contention During Rolling Updates
 
@@ -347,6 +397,20 @@ The deployment will automatically create a replacement once the GPU is free.
 ---
 
 ## Troubleshooting
+
+### Dead Pods Accumulating (`ContainerStatusUnknown`)
+
+The NVIDIA device plugin on this node cycles periodically (display/compute contention XIDs on
+the display GPU); each cycle can kill the running ComfyUI pod, and Kubernetes never
+garbage-collects dead Deployment pods — they pile up at roughly one per day. Cleanup:
+
+```bash
+microk8s kubectl delete pods -n comfyui --field-selector status.phase=Failed
+```
+
+The field selector cannot match the Running pod, so this is always safe. The long-term fix is
+DRA (GPU selection by UUID, pinning workloads to the non-display GPU); `FAIL_ON_INIT_ERROR=false`
+on the device plugin (already applied via ClusterPolicy) reduces but does not eliminate the churn.
 
 ### Pod Stuck in Pending
 
