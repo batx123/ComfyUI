@@ -1,3 +1,0 @@
-# Ingress is not used for ComfyUI.
-# ComfyUI is exposed via MetalLB LoadBalancer (192.168.1.202:8188).
-# See service.yaml.

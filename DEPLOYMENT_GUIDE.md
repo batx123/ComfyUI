@@ -41,8 +41,6 @@ This guide documents the working deployment of ComfyUI on a MicroK8s single-node
 | `k8s/pvc.yaml` | Four PersistentVolumeClaims for storage |
 | `k8s/hpa.yaml` | HorizontalPodAutoscaler (capped at 1 replica) |
 
-> **Note:** `k8s/deployment.yaml` exists but is not applied. The active deployment is `comfyui-gpu` from `deployment-gpu.yaml`.
-
 ---
 
 ## Prerequisites
@@ -129,7 +127,6 @@ The four PVCs are defined in `k8s/pvc.yaml`:
 | `comfyui-models-pvc` | `/app/models` | 200Gi | Model checkpoints |
 | `comfyui-web-pvc` | `/app/comfyui/web` | 10Gi | Web assets |
 | `comfyui-temp-pvc` | `/app/temp` | 20Gi | Temporary files |
-| `comfyui-extra-model-paths-pvc` | `/app/comfyui/extra_model_paths` | 300Gi | Additional model paths |
 
 > **Critical:** The models PVC must mount at `/app/models` — this is ComfyUI's default `models_dir`. Mounting at `/app/comfyui/models` will result in models not being found.
 
