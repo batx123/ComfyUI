@@ -32,6 +32,9 @@ spec:
       - name: comfyui-gpu
         image: localhost:32000/comfyui:latest
         imagePullPolicy: Always
+        # Time-slicing has no memory isolation: keep 4 GB free on the shared GPU
+        # so co-located pods (chatterbox, nanojev) can grow during inference.
+        command: ["python", "main.py", "--listen", "0.0.0.0", "--vram-headroom", "4"]
         ports:
         - containerPort: 8188
           name: http
@@ -58,6 +61,10 @@ spec:
           value: "/app/comfyui/temp"
         - name: COMFYUI_EXTRA_MODEL_PATHS
           value: "/app/comfyui/extra_model_paths"
+        # Hard per-container CUDA memory cap in MiB (toolkit 1.20.1 + driver R615 CDI hook), added 2026-11-08.
+        # ComfyUI sees a 24 GiB card; --vram-headroom 4 applies on top of that.
+        - name: NVIDIA_GPU_MEMORY_LIMIT
+          value: "24576"
         volumeMounts:
         - name: models
           mountPath: /app/models
